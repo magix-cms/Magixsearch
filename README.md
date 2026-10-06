@@ -63,4 +63,9 @@ La page de résultats s'appuie sur les boucles natives de votre thème. Assurez-
 - `catalog/loop/product-grid.tpl`
 
 ---
-*Plugin développé pour Magix CMS v4.x*
+
+## 📄 Licence
+
+Ce projet est sous licence **GPLv3**. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+Copyright (C) 2008 - 2026 Gerits Aurelien (Magix CMS)
+Ce programme est un logiciel libre ; vous pouvez le redistribuer et/ou le modifier selon les termes de la Licence Publique Générale GNU telle que publiée par la Free Software Foundation ; soit la version 3 de la Licence, ou (à votre discrétion) toute version ultérieure.

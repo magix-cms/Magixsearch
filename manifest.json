@@ -1,0 +1,11 @@
+{
+  "name": "Magixsearch",
+  "version": "1.0.0",
+  "description": "Moteur de recherche transversal pour Magix CMS (Pages, Actualités, Catalogue) avec support du mode MySQL FULLTEXT.",
+  "author": "Magix CMS",
+  "type": "hybrid",
+  "has_config": true,
+  "default_hooks": [
+    "displayHeaderSearch"
+  ]
+}

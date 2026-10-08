@@ -45,18 +45,13 @@ class MagixsearchFrontDb extends BaseDb
     /**
      * Recherche dans le module Pages
      */
+    /**
+     * Recherche dans le module Pages
+     */
     public function searchPages(string $query, int $idLang, bool $fullText): array
     {
         $qb = new QueryBuilder();
-
-        // On récupère p.* et c.* pour que le Presenter puisse formater toutes les données
-        $qb->select([
-            'p.*',
-            'c.*',
-            'i.name_img',
-            'ic.alt_img',
-            'ic.title_img'
-        ])
+        $qb->select(['p.*', 'c.*', 'i.name_img', 'ic.alt_img', 'ic.title_img'])
             ->from('mc_cms_page', 'p')
             ->join('mc_cms_page_content', 'c', 'p.id_pages = c.id_pages AND c.id_lang = ' . $idLang)
             ->leftJoin('mc_cms_page_img', 'i', 'p.id_pages = i.id_pages AND i.default_img = 1')
@@ -64,12 +59,13 @@ class MagixsearchFrontDb extends BaseDb
             ->where('c.published_pages = 1');
 
         if ($fullText) {
+            // Mode Full-text : Titre + Contenu
             $qb->where('MATCH(c.name_pages, c.content_pages) AGAINST(:q IN BOOLEAN MODE)', ['q' => $query . '*']);
         } else {
-            $qb->where('(c.name_pages LIKE :q OR c.content_pages LIKE :q)', ['q' => '%' . $query . '%']);
+            // Mode Standard : Titre uniquement
+            $qb->where('c.name_pages LIKE :q', ['q' => '%' . $query . '%']);
         }
 
-        // 🚀 OVERRIDE : On permet aux autres plugins de modifier la requête
         $overrides = HookManager::triggerFilter('extendPagesList', []);
         if (!empty($overrides)) {
             foreach ($overrides as $pluginOverride) {
@@ -84,32 +80,27 @@ class MagixsearchFrontDb extends BaseDb
     }
 
     /**
-     * Recherche dans le module News en incluant l'image par défaut
+     * Recherche dans le module News
      */
     public function searchNews(string $query, int $idLang, bool $fullText): array
     {
         $qb = new QueryBuilder();
-        $qb->select([
-            'n.*',
-            'c.*',
-            'i.name_img',
-            'ic.alt_img',
-            'ic.title_img'
-        ])
+        $qb->select(['n.*', 'c.*', 'i.name_img', 'ic.alt_img', 'ic.title_img'])
             ->from('mc_news', 'n')
             ->join('mc_news_content', 'c', 'n.id_news = c.id_news AND c.id_lang = ' . $idLang)
             ->leftJoin('mc_news_img', 'i', 'n.id_news = i.id_news AND i.default_img = 1')
             ->leftJoin('mc_news_img_content', 'ic', 'i.id_img = ic.id_img AND ic.id_lang = ' . $idLang)
-            ->where('c.published_news = 1');
+            ->where('c.published_news = 1')
+            ->where('n.date_publish <= NOW()');
 
         if ($fullText) {
-            // CORRECTION: name_news au lieu de title_news
+            // Mode Full-text : Titre + Contenu
             $qb->where('MATCH(c.name_news, c.content_news) AGAINST(:q IN BOOLEAN MODE)', ['q' => $query . '*']);
         } else {
-            $qb->where('(c.name_news LIKE :q OR c.content_news LIKE :q)', ['q' => '%' . $query . '%']);
+            // Mode Standard : Titre uniquement
+            $qb->where('c.name_news LIKE :q', ['q' => '%' . $query . '%']);
         }
 
-        // 🚀 OVERRIDE News (Si vous avez un triggerFilter 'extendNewsList')
         $overrides = HookManager::triggerFilter('extendNewsList', []);
         if (!empty($overrides)) {
             foreach ($overrides as $pluginOverride) {
@@ -119,6 +110,7 @@ class MagixsearchFrontDb extends BaseDb
             }
         }
 
+        $qb->orderBy('n.date_publish', 'DESC');
         $qb->limit(10);
         return $this->executeAll($qb) ?: [];
     }
@@ -137,12 +129,13 @@ class MagixsearchFrontDb extends BaseDb
             ->where('cc.published_cat = 1');
 
         if ($fullText) {
+            // Mode Full-text : Titre + Contenu
             $qb->where('MATCH(cc.name_cat, cc.content_cat) AGAINST(:q IN BOOLEAN MODE)', ['q' => $query . '*']);
         } else {
-            $qb->where('(cc.name_cat LIKE :q OR cc.content_cat LIKE :q)', ['q' => '%' . $query . '%']);
+            // Mode Standard : Titre uniquement
+            $qb->where('cc.name_cat LIKE :q', ['q' => '%' . $query . '%']);
         }
 
-        //  OVERRIDE Category
         $overrides = HookManager::triggerFilter('extendCategoryList', []);
         if (!empty($overrides)) {
             foreach ($overrides as $pluginOverride) {
@@ -162,8 +155,6 @@ class MagixsearchFrontDb extends BaseDb
     public function searchProduct(string $query, int $idLang, bool $fullText): array
     {
         $qb = new QueryBuilder();
-
-        // Structure exacte attendue par ProductPresenter
         $qb->select([
             'p.*', 'pc.*',
             'def_cat.id_cat AS default_id_cat', 'def_cat_c.url_cat AS default_url_cat', 'def_cat_c.name_cat',
@@ -179,19 +170,19 @@ class MagixsearchFrontDb extends BaseDb
             ->where('pc.published_p = 1');
 
         if ($fullText) {
-            // CORRECTION: On utilise FULLTEXT pour le nom/contenu, et LIKE pour la référence (car sur une autre table)
+            // Mode Full-text : Titre + Contenu + Référence
             $qb->where('(MATCH(pc.name_p, pc.content_p) AGAINST(:q IN BOOLEAN MODE) OR p.reference_p LIKE :ref)', [
                 'q'   => $query . '*',
                 'ref' => '%' . $query . '%'
             ]);
         } else {
-            $qb->where('(pc.name_p LIKE :q OR pc.content_p LIKE :q OR p.reference_p LIKE :ref)', [
+            // Mode Standard : Titre + Référence uniquement
+            $qb->where('(pc.name_p LIKE :q OR p.reference_p LIKE :ref)', [
                 'q'   => '%' . $query . '%',
                 'ref' => '%' . $query . '%'
             ]);
         }
 
-        //  OVERRIDE Product
         $overrides = HookManager::triggerFilter('extendProductList', []);
         if (!empty($overrides)) {
             foreach ($overrides as $pluginOverride) {
